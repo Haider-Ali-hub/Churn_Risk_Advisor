@@ -121,3 +121,45 @@ The application is configured for seamless deployment on **Streamlit Community C
 ## 📜 License
 
 This project is open-source and available under the [MIT License](LICENSE).
+
+---
+
+## 📝 Written Analysis & Findings (Write It Section)
+
+### Part 1: Training-Serving Skew & Parity Test
+* **Probabilities Comparison:** 
+  * `Wrong (Week 3 build_features)`: **0.548**
+  * `Right (prepare_input)`: **0.274**
+* **Explanation:** When `get_dummies(drop_first=True)` is called on a single row, pandas treats the single present category as the baseline/first category and drops it. As a result, all encoded `Contract` columns become `0`, tricking the model into treating the customer as having a high-risk *Month-to-month* contract instead of a *Two-year* contract, effectively doubling the predicted churn probability[cite: 5].
+* **Parity Test Result:** `Parity test passed on 7043 customers` with a maximum absolute difference of `0.0000` ($< 10^{-15}$), proving zero training-serving skew[cite: 5].
+* **What-If Driver Analysis:** Switching the contract to **Two year** lowers the risk probability the most (from 0.812 to 0.231). However, this represents a statistical association learned from historical data rather than a guaranteed causal effect; forcing a dissatisfied customer into a long-term contract without addressing underlying issues may lead to default or early cancellation rather than true retention[cite: 6].
+
+### Part 2: Local Application Testing Insights
+* **Surprising App Behavior:** Moving the **Contact threshold slider** dynamically updates the assigned Risk Band (Low, Watch, High) instantly across the UI without recalculating or changing the underlying predicted churn probability itself[cite: 10].
+* **Problematic Real-World User Input:** A user might enter a extremely high `MonthlyCharges` (e.g., $118) along with a `0` month tenure. Since `TotalCharges` is derived automatically as `tenure * monthly` (0 USD), the model receives an unrealistically skewed ratio that may distort probability scoring for fresh onboarding profiles[cite: 9, 10].
+
+### Part 3: Deployment Verification
+* **Public Live URL:** [https://churnriskadvisor-dvvv5nizk3df2fax7m8bwx.streamlit.app/](https://churnriskadvisor-dvvv5nizk3df2fax7m8bwx.streamlit.app/)
+* **Deployment Experience:** The initial deployment succeeded seamlessly because `requirements.txt` strictly pinned `scikit-learn` version `1.6.1` matching the training environment, preventing model unpickling/deserialization errors[cite: 6, 7, 11].
+
+---
+
+## ❓ Check Your Understanding
+
+1. **Why does `get_dummies(drop_first=True)` break predictions when scoring a single customer?**  
+   Calling `drop_first=True` on a single-row dataframe drops the only present categorical value because pandas views it as the first category[cite: 5]. This zeroes out essential features, causing the model to misinterpret inputs (e.g., misreading a Two-year contract as Month-to-month)[cite: 5].
+
+2. **What does the parity test compare, and why must it cover every training row rather than a few?**  
+   The parity test compares predictions generated during model training against predictions produced by the serving encoder (`prepare_input`)[cite: 5]. It must cover every training row to guarantee that no edge case, rare category combination, or missing column setup introduces hidden training-serving skew[cite: 3, 5].
+
+3. **Should the model be loaded with `st.cache_resource` or `st.cache_data`? Why?**  
+   It must be loaded with `@st.cache_resource`[cite: 8]. Heavy, stateful objects like machine learning models or database connections should be cached as shared global resources once per server instance rather than re-parsed or duplicated per user session/data mutation[cite: 8].
+
+4. **Why does the app derive `TotalCharges` instead of asking the user to type it?**  
+   Deriving `TotalCharges` (`tenure * MonthlyCharges`) prevents user input errors, logical inconsistencies (e.g., specifying high tenure but $0 total charges), and simplifies the UI[cite: 9].
+
+5. **Why must `requirements.txt` pin the exact `scikit-learn` version used in training?**  
+   Scikit-learn model artifacts (`.joblib` / `.pkl`) depend on internal class structures and byte code. Pinning the exact training version prevents `InconsistentVersionWarning` or unpickling/deserialization failures during deployment on cloud servers[cite: 4, 7, 11].
+
+6. **The what-if shows a two-year contract lowers risk from 0.79 to 0.27. Would offering one make the customer stay? How could a company find out?**  
+   Not necessarily. Observational ML models capture correlations, not direct causality[cite: 6, 10]. To determine if contract extensions actually drive retention, the company must run a controlled randomized experiment (A/B testing) offering promotional long-term contracts to a target cohort[cite: 3, 6].
