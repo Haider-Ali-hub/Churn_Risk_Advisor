@@ -24,11 +24,13 @@ An interactive, machine learning-driven web application designed to predict cust
 ## 📸 Screenshots
 
 ### 1. Single Customer Scoring Tab
-![Single Customer Assessment](docs/screenshots/single_customer_tab.png)
+<img width="1365" height="642" alt="one customer tab" src="https://github.com/user-attachments/assets/d865004b-7596-4d4e-a952-e50240356289" />
+
 *Interactive UI for analyzing individual customer profiles, churn probability, and risk tiers.*
 
 ### 2. Batch Scoring Tab
-![Batch Scoring](docs/screenshots/batch_scoring_tab.png)
+<img width="1366" height="642" alt="Batch tab" src="https://github.com/user-attachments/assets/d3e5d5f4-372a-4deb-8910-1b59a67eb968" />
+
 *Batch processing 50+ customer profiles using `sample_customers.csv`.*
 
 ---
